@@ -1,6 +1,7 @@
 package com.thoughtworks.hand_segmentation;
 
 import android.content.pm.ActivityInfo;
+import android.os.Environment;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -18,11 +19,14 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.File;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnTouchListener,
@@ -31,11 +35,11 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     private static final String TAG = "ColourBlobDetection";
     private boolean mIsColourSelected = false;
     private Mat mRgba;
+    private Mat mMask;
+    //private Mat mDest;
     private Scalar mBlobColourRgba;
     private Scalar mBlobColourHsv;
     private ColourBlobDetector mDetector;
-    private Mat mSpectrum;
-    private Size mSpectrumSize;
     private Scalar mContourColour;
     private CameraBridgeViewBase mOpenCvCameraView;
 
@@ -65,13 +69,13 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
 
         setContentView(R.layout.activity_main);
 
-        FloatingActionButton floatingActionButton = (FloatingActionButton) findViewById(R.id.fab);
-        floatingActionButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Snackbar.make(v, "Colour selected", Snackbar.LENGTH_SHORT).show();
-            }
-        });
+//        FloatingActionButton floatingActionButton = (FloatingActionButton) findViewById(R.id.fab);
+//        floatingActionButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                Snackbar.make(v, "Button selected", Snackbar.LENGTH_SHORT).show();
+//            }
+//        });
 
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.surfaceView);
         mOpenCvCameraView.setCvCameraViewListener(this);
@@ -81,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
             Toast.makeText(this.getApplicationContext(), ":(", Toast.LENGTH_SHORT).show();
         } else {
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-            Toast.makeText(this.getApplicationContext(), ":D", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this.getApplicationContext(), "OpenCV Initialized", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -94,6 +98,11 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
     }
@@ -102,18 +111,18 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     public void onCameraViewStarted(int width, int height) {
         //CvType - Bit depth/number of channels
         mRgba = new Mat(height, width, CvType.CV_8UC4);
+        mMask = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
+        //mDest = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
         mDetector = new ColourBlobDetector();
-        mSpectrum = new Mat();
         mBlobColourHsv = new Scalar(255);
         mBlobColourRgba = new Scalar(255);
-        mSpectrumSize = new Size(200, 64);
-        //red
-        mContourColour = new Scalar(255, 0, 0, 255);
+        mContourColour = new Scalar(255, 0, 0, 255); //Red
     }
 
     @Override
     public void onCameraViewStopped() {
         mRgba.release();
+        mMask.release();
     }
 
     @Override
@@ -124,16 +133,33 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         if (mIsColourSelected) {
             mDetector.process(mRgba);
             List<MatOfPoint> contours = mDetector.getContours();
-            Imgproc.drawContours(mRgba, contours, -1, mContourColour);
 
-            Mat colourLabel = mRgba.submat(4, 68, 4, 68);
-            colourLabel.setTo(mBlobColourRgba);
+//            Mat maskedMat = new Mat(); //mRgba.size(), mRgba.channels()
+//            for (MatOfPoint contour : contours) {
+//                Rect rect = Imgproc.boundingRect(contour);
+//                maskedMat = mRgba.submat(rect);
+//            }
 
-            Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
-            mSpectrum.copyTo(spectrumLabel);
+            Core.bitwise_and(mRgba, mMask, mRgba);
+
+            Imgproc.drawContours(mRgba, contours, -1, mContourColour, -1);
+
+//            Mat crop = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
+//            crop.setTo(new Scalar(0, 255, 0));
+//            mRgba.copyTo(crop, mMask);
+//            crop.copyTo(mRgba);
         }
 
         return mRgba;
+    }
+
+    private boolean saveMatToFile(Mat matImage, String filename) {
+        File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        if (path.isDirectory()) {
+            File file = new File(path, filename);
+            return Imgcodecs.imwrite(file.toString(), matImage);
+        }
+        return false;
     }
 
     @Override
@@ -141,13 +167,12 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         int cols = mRgba.cols();
         int rows = mRgba.rows();
 
+        //View/Touch offset
         int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
         int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
 
         int x = (int)event.getX() - xOffset;
         int y = (int)event.getY() - yOffset;
-
-        Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
 
         if ((x < 0) || (y < 0) || (x > cols) || (y > rows)) return false;
 
@@ -176,8 +201,6 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
                 ", " + mBlobColourRgba.val[2] + ", " + mBlobColourRgba.val[3] + ")");
 
         mDetector.setHsvColor(mBlobColourHsv);
-
-        Imgproc.resize(mDetector.getSpectrum(), mSpectrum, mSpectrumSize);
 
         mIsColourSelected = true;
 

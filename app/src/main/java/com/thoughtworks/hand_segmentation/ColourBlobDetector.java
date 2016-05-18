@@ -1,5 +1,7 @@
 package com.thoughtworks.hand_segmentation;
 
+import android.util.Log;
+
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
