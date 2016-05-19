@@ -33,7 +33,6 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     private static final String TAG = "ColourBlobDetection";
     private boolean mIsColourSelected = false;
     private Mat mRgba;
-    private Mat mMask;
     private Scalar mBlobColourRgba;
     private Scalar mBlobColourHsv;
     private ColourBlobDetector mDetector;
@@ -108,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         //CvType - Bit depth/number of channels
         mRgba = new Mat(height, width, CvType.CV_8UC4);
         //mMask = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
-        mMask = new Mat(mRgba.size(), CvType.CV_8U, Scalar.all(0));
         mDetector = new ColourBlobDetector();
         mBlobColourHsv = new Scalar(255);
         mBlobColourRgba = new Scalar(255);
@@ -117,7 +115,6 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     @Override
     public void onCameraViewStopped() {
         mRgba.release();
-        mMask.release();
     }
 
     @Override
@@ -129,15 +126,15 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
             mDetector.process(mRgba);
             List<MatOfPoint> contours = mDetector.getContours();
 
-            Mat clonedMat = mRgba.clone(); //Colour space changes to BGR
-            Imgproc.cvtColor(clonedMat, clonedMat, Imgproc.COLOR_BGR2RGBA);
+            Mat clonedMat = mRgba.clone();
             Mat mask_image = new Mat(clonedMat.size(), CvType.CV_8UC4, Scalar.all(0));
             Imgproc.drawContours(mask_image, contours, -1, Scalar.all(255), -1);
             //Invert mask
             //Core.bitwise_not(mask_image, mask_image);
-
-            mRgba.copyTo(mMask, mask_image);
-            //saveMatToFile(mMask, "mMask.png");
+            Mat destinationMat = new Mat(mRgba.size(), CvType.CV_8U, Scalar.all(0));
+            mRgba.copyTo(destinationMat, mask_image);
+            Imgproc.cvtColor(destinationMat, destinationMat, Imgproc.COLOR_BGR2RGBA);
+            //saveMatToFile(destinationMat, "mMask.png");
         }
 
         return mRgba;
