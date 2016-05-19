@@ -125,15 +125,16 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         if (mIsColourSelected) {
             mDetector.process(mRgba);
             List<MatOfPoint> contours = mDetector.getContours();
-
+            //Create copy of camera frame
             Mat clonedMat = mRgba.clone();
-            Mat mask_image = new Mat(clonedMat.size(), CvType.CV_8UC4, Scalar.all(0));
-            Imgproc.drawContours(mask_image, contours, -1, Scalar.all(255), -1);
-            //Invert mask
-            //Core.bitwise_not(mask_image, mask_image);
-            Mat destinationMat = new Mat(mRgba.size(), CvType.CV_8U, Scalar.all(0));
-            mRgba.copyTo(destinationMat, mask_image);
-            Imgproc.cvtColor(destinationMat, destinationMat, Imgproc.COLOR_BGR2RGBA);
+            //Create empty Mat for masking
+            Mat maskedImage = new Mat(clonedMat.size(), CvType.CV_8UC4, Scalar.all(0));
+            //Draw filled contours onto mask
+            Imgproc.drawContours(maskedImage, contours, -1, Scalar.all(255), -1);
+            //Create new Mat where mask and frame will be combined
+            Mat destinationMat = new Mat(mRgba.size(), CvType.CV_8UC4, Scalar.all(0));
+            mRgba.copyTo(destinationMat, maskedImage);
+            mRgba = destinationMat;
             //saveMatToFile(destinationMat, "mMask.png");
         }
 
