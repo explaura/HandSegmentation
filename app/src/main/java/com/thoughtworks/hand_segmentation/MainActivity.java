@@ -19,10 +19,8 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
-import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
@@ -36,11 +34,9 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     private boolean mIsColourSelected = false;
     private Mat mRgba;
     private Mat mMask;
-    //private Mat mDest;
     private Scalar mBlobColourRgba;
     private Scalar mBlobColourHsv;
     private ColourBlobDetector mDetector;
-    private Scalar mContourColour;
     private CameraBridgeViewBase mOpenCvCameraView;
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -111,12 +107,11 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     public void onCameraViewStarted(int width, int height) {
         //CvType - Bit depth/number of channels
         mRgba = new Mat(height, width, CvType.CV_8UC4);
-        mMask = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
-        //mDest = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
+        //mMask = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
+        mMask = new Mat(mRgba.size(), CvType.CV_8U, Scalar.all(0));
         mDetector = new ColourBlobDetector();
         mBlobColourHsv = new Scalar(255);
         mBlobColourRgba = new Scalar(255);
-        mContourColour = new Scalar(255, 0, 0, 255); //Red
     }
 
     @Override
@@ -134,20 +129,15 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
             mDetector.process(mRgba);
             List<MatOfPoint> contours = mDetector.getContours();
 
-//            Mat maskedMat = new Mat(); //mRgba.size(), mRgba.channels()
-//            for (MatOfPoint contour : contours) {
-//                Rect rect = Imgproc.boundingRect(contour);
-//                maskedMat = mRgba.submat(rect);
-//            }
+            Mat clonedMat = mRgba.clone(); //Colour space changes to BGR
+            Imgproc.cvtColor(clonedMat, clonedMat, Imgproc.COLOR_BGR2RGBA);
+            Mat mask_image = new Mat(clonedMat.size(), CvType.CV_8UC4, Scalar.all(0));
+            Imgproc.drawContours(mask_image, contours, -1, Scalar.all(255), -1);
+            //Invert mask
+            //Core.bitwise_not(mask_image, mask_image);
 
-            Core.bitwise_and(mRgba, mMask, mRgba);
-
-            Imgproc.drawContours(mRgba, contours, -1, mContourColour, -1);
-
-//            Mat crop = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
-//            crop.setTo(new Scalar(0, 255, 0));
-//            mRgba.copyTo(crop, mMask);
-//            crop.copyTo(mRgba);
+            mRgba.copyTo(mMask, mask_image);
+            //saveMatToFile(mMask, "mMask.png");
         }
 
         return mRgba;
@@ -157,7 +147,8 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
         if (path.isDirectory()) {
             File file = new File(path, filename);
-            return Imgcodecs.imwrite(file.toString(), matImage);
+            boolean res = Imgcodecs.imwrite(file.toString(), matImage);
+            return res;
         }
         return false;
     }
