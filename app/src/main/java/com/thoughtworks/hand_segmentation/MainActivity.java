@@ -2,8 +2,6 @@ package com.thoughtworks.hand_segmentation;
 
 import android.content.pm.ActivityInfo;
 import android.os.Environment;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -33,6 +31,8 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     private static final String TAG = "ColourBlobDetection";
     private boolean mIsColourSelected = false;
     private Mat mRgba;
+//    private Mat mMaskedImage;
+//    private Mat mDestinationMat;
     private Scalar mBlobColourRgba;
     private Scalar mBlobColourHsv;
     private ColourBlobDetector mDetector;
@@ -63,14 +63,6 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
-
-//        FloatingActionButton floatingActionButton = (FloatingActionButton) findViewById(R.id.fab);
-//        floatingActionButton.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                Snackbar.make(v, "Button selected", Snackbar.LENGTH_SHORT).show();
-//            }
-//        });
 
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.surfaceView);
         mOpenCvCameraView.setCvCameraViewListener(this);
@@ -106,7 +98,6 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
     public void onCameraViewStarted(int width, int height) {
         //CvType - Bit depth/number of channels
         mRgba = new Mat(height, width, CvType.CV_8UC4);
-        //mMask = Mat.zeros(mRgba.size(), CvType.CV_8UC4);
         mDetector = new ColourBlobDetector();
         mBlobColourHsv = new Scalar(255);
         mBlobColourRgba = new Scalar(255);
@@ -125,10 +116,8 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         if (mIsColourSelected) {
             mDetector.process(mRgba);
             List<MatOfPoint> contours = mDetector.getContours();
-            //Create copy of camera frame
-            Mat clonedMat = mRgba.clone();
             //Create empty Mat for masking
-            Mat maskedImage = new Mat(clonedMat.size(), CvType.CV_8UC4, Scalar.all(0));
+            Mat maskedImage = new Mat(mRgba.size(), CvType.CV_8UC4, Scalar.all(0));
             //Draw filled contours onto mask
             Imgproc.drawContours(maskedImage, contours, -1, Scalar.all(255), -1);
             //Create new Mat where mask and frame will be combined
